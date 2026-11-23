@@ -1,3 +1,5 @@
 .vagrant/
 eurorack-modules/
+parasites/
 .DS_Store
+.vscode

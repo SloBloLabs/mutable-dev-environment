@@ -9,9 +9,16 @@ This configuration file and this shellscript create a Linux (ubuntu) virtual mac
 
 ## Requirements
 
-* [VirtualBox 5.x](https://www.virtualbox.org/wiki/Downloads)
+* [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
 * [VirtualBox Extension Pack](https://www.virtualbox.org/wiki/Downloads)
 * [Vagrant](https://www.vagrantup.com/downloads.html)
+
+On Apple Silicon Macs, use VirtualBox 7.1 or later. Vagrant selects an ARM64
+Ubuntu 22.04 guest there; Intel hosts continue to use the original Ubuntu
+Trusty environment. The ARM64 guest runs the pinned GCC 4.8-2013-q4 Linux
+toolchain through QEMU user-mode emulation because that toolchain is an x86
+binary. This preserves the pinned compiler version, but builds may be slower
+than on Intel.
 
 The Extension pack consists of a file with the `vbox-extpack` extension.  On windows, double click on it.  On OS X or Linux, the file needs to be installed from the command line with the command:
 
@@ -37,7 +44,20 @@ To start the VM, open a terminal in the `mutable-dev-environment` directory with
 
     vagrant up
 
+If this directory already has a VM created with the old x86 box, Vagrant cannot
+convert it in place. Destroy and recreate it with `vagrant destroy` followed by
+`vagrant up`; this removes data stored only inside the VM. The default firmware
+checkout is in the host-shared project directory and is not removed.
+
 The first time the VM is started, all tools will be downloaded, and the latest version of the code will be grabbed from github.  The process takes about 15 minutes, depending on the speed of your internet connection or computer.
+
+The original Mutable Instruments sources and the SloBloLabs Parasites fork are
+checked out side by side in `/vagrant/eurorack-modules` and `/vagrant/parasites`.
+Both use the same VM and system libraries. The original sources use GCC 4.8.3;
+the Parasites `stmlib` submodule defaults to the
+`gcc-arm-none-eabi-5_4-2016q3` toolchain, whose compiler reports GCC 5.4.1.
+The Mutable Instruments Beads makefiles require GCC 4.9. GCC 4.9 and 5.4.1
+are installed alongside GCC 4.8.3 and run through QEMU on ARM64.
 
 Then, you can log onto the virtual machine by running:
 
@@ -45,6 +65,7 @@ Then, you can log onto the virtual machine by running:
 
 Once in the virtual machine, you can try, for example, to compile Clouds' bootloader and code:
 
+    mkdir -p build/clouds_bootloader build/clouds
     make -f clouds/bootloader/makefile hex
     make -f clouds/makefile
 
@@ -60,6 +81,62 @@ Or you can generate a .wav file for the built-in audio updater:
 
 The firmware update file will be put in `build/clouds/clouds.wav`.
 
+To build the same Clouds targets from Parasites, switch to its checkout and run:
+
+    cd /vagrant/parasites
+    mkdir -p build/clouds_bootloader build/clouds
+    make -f clouds/bootloader/makefile hex
+    make -f clouds/makefile
+
+To build every module application and each available bootloader, run the
+following in the corresponding checkout. The loops create each build directory
+before invoking make, stop if a build fails, and accept either `makefile` or
+`makefile.mk` entrypoint names. The `avrlib` and `avrlibx` makefile fragments
+are included by module makefiles and are not standalone firmware targets.
+
+In the original Mutable Instruments checkout:
+
+    cd /vagrant/eurorack-modules
+    (
+      set -e
+      for makefile in */makefile */makefile.mk; do
+        [ -f "$makefile" ] || continue
+        case "$makefile" in avrlib/*|avrlibx/*) continue ;; esac
+        module=${makefile%/makefile*}
+        mkdir -p "build/$module"
+        make -f "$makefile"
+      done
+      for makefile in */bootloader/makefile */bootloader/makefile.mk; do
+        [ -f "$makefile" ] || continue
+        module=${makefile%/bootloader/makefile*}
+        mkdir -p "build/${module}_bootloader"
+        make -f "$makefile"
+      done
+    )
+
+In the Parasites checkout:
+
+    cd /vagrant/parasites
+    (
+      set -e
+      for makefile in */makefile */makefile.mk; do
+        [ -f "$makefile" ] || continue
+        case "$makefile" in avrlib/*|avrlibx/*) continue ;; esac
+        module=${makefile%/makefile*}
+        mkdir -p "build/$module"
+        make -f "$makefile"
+      done
+      for makefile in */bootloader/makefile */bootloader/makefile.mk; do
+        [ -f "$makefile" ] || continue
+        module=${makefile%/bootloader/makefile*}
+        mkdir -p "build/${module}_bootloader"
+        make -f "$makefile"
+      done
+    )
+
+These commands produce each module's application HEX and separate bootloader
+HEX files where a bootloader makefile exists. They do not upload firmware.
+
 Once you're done with your hacking session, you can leave the VM terminal with:
 
     exit
@@ -68,7 +145,10 @@ The virtual machine continues running and can be reaccessed with `vagrant ssh`. 
 
 ## Moving files between the VM and the host
 
-By default, the working directory (`eurorack-modules`) is installed in the `/vagrant` directory, which is shared between the VM and the host.  You can thus use any text editor on the host to modify the files.  Note that any file can be transferred between the VM and the host by being copied in this location.
+Both source checkouts (`eurorack-modules` and `parasites`) are installed in the
+`/vagrant` directory, which is shared between the VM and the host. You can use
+any text editor on the host to modify them. Any file can be transferred between
+the VM and the host by copying it in this location.
 
 If you prefer working in a more self-contained environment and leave your host directory clean, you can comment the line `CODE_DIRECTORY=/vagrant` and uncomment the line `CODE_DIRECTORY=/home/vagrant` before setting up the VM.  The code will not be installed in the shared directory, and will be accessible only from within the VM.
 

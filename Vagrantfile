@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require "rbconfig"
+
 Vagrant.configure(2) do |config|
   # The most common configuration options are documented and commented below.
   # For a complete reference, please see the online documentation at
@@ -8,7 +10,14 @@ Vagrant.configure(2) do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
-  config.vm.box = "ubuntu/trusty64"
+  arm_host = %w[arm64 aarch64].include?(RbConfig::CONFIG["host_cpu"])
+  if arm_host
+    config.vm.box = "bento/ubuntu-22.04"
+    config.vm.box_version = "202510.26.0"
+    config.vm.box_architecture = "arm64"
+  else
+    config.vm.box = "ubuntu/trusty64"
+  end
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
