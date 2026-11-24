@@ -89,59 +89,50 @@ To build the same Clouds targets from Parasites, switch to its checkout and run:
     make -f clouds/makefile
 
 To build every module application and each available bootloader, run the
-following in the corresponding checkout. The loops create each build directory
-before invoking make, stop if a build fails, and accept either `makefile` or
-`makefile.mk` entrypoint names. The `avrlib` and `avrlibx` makefile fragments
-are included by module makefiles and are not standalone firmware targets.
+build script on the corresponding checkout. For each module it builds the
+application HEX and, when the module makefile has a `wav` target, the WAV
+firmware update file for the built-in audio updater. It then builds each
+bootloader. It creates each build directory before invoking make, stops if a
+build fails, and accepts either `makefile` or `makefile.mk` entrypoint names. The
+`avrlib` and `avrlibx` makefile fragments are included by module makefiles and
+are not standalone firmware targets.
 
 In the original Mutable Instruments checkout:
 
-    cd /vagrant/eurorack-modules
-    (
-      set -e
-      for makefile in */makefile */makefile.mk; do
-        [ -f "$makefile" ] || continue
-        case "$makefile" in avrlib/*|avrlibx/*) continue ;; esac
-        module=${makefile%/makefile*}
-        mkdir -p "build/$module"
-        make -f "$makefile"
-      done
-      for makefile in */bootloader/makefile */bootloader/makefile.mk; do
-        [ -f "$makefile" ] || continue
-        module=${makefile%/bootloader/makefile*}
-        mkdir -p "build/${module}_bootloader"
-        make -f "$makefile"
-      done
-    )
+    /vagrant/ci/build-all.sh /vagrant/eurorack-modules
 
 In the Parasites checkout:
 
-    cd /vagrant/parasites
-    (
-      set -e
-      for makefile in */makefile */makefile.mk; do
-        [ -f "$makefile" ] || continue
-        case "$makefile" in avrlib/*|avrlibx/*) continue ;; esac
-        module=${makefile%/makefile*}
-        mkdir -p "build/$module"
-        make -f "$makefile"
-      done
-      for makefile in */bootloader/makefile */bootloader/makefile.mk; do
-        [ -f "$makefile" ] || continue
-        module=${makefile%/bootloader/makefile*}
-        mkdir -p "build/${module}_bootloader"
-        make -f "$makefile"
-      done
-    )
+    /vagrant/ci/build-all.sh /vagrant/parasites
 
-These commands produce each module's application HEX and separate bootloader
-HEX files where a bootloader makefile exists. They do not upload firmware.
+The results are in `build/<module>/` (application: `.hex`, `.elf`, `.bin`,
+`.map`, `.wav`) and `build/<module>_bootloader/` (bootloader). The script does
+not upload firmware. To build only the HEX files without the WAV step, use the
+plain `make -f <module>/makefile` commands shown above.
 
 Once you're done with your hacking session, you can leave the VM terminal with:
 
     exit
 
 The virtual machine continues running and can be reaccessed with `vagrant ssh`. It can also be suspended with `vagrant suspend`, halted with `vagrant halt`, and completely destroyed with `vagrant destroy`.  Note that with this last command, you might lose any files you have created inside the VM's disk image!
+
+## Publishing firmware as GitHub releases
+
+The workflow [.github/workflows/release.yml](.github/workflows/release.yml)
+builds both source trees on a GitHub-hosted Ubuntu 22.04 runner (no VM) with the
+same pinned toolchains as the Vagrant environment (installed by
+[ci/install-toolchains.sh](ci/install-toolchains.sh)), then attaches
+`mutable-instruments.zip`, `parasites.zip` and `SHA256SUMS` to a release. Each zip
+holds the `.hex`, `.elf`, `.bin`, `.map` and, for every module whose makefile has a
+`wav` target, the `.wav` audio-update file, for the applications and bootloaders.
+
+* Push a tag to build and publish: `git tag v1.0 && git push origin v1.0`.
+* Or run the workflow manually (Actions tab) and choose the `eurorack`/`parasites`
+  refs to build; give a `publish_tag` to create the release, or leave it empty to
+  get the zips as a workflow artifact only.
+
+The same build can be run inside the VM with
+`/vagrant/ci/build-all.sh /vagrant/parasites` (or `/vagrant/eurorack-modules`).
 
 ## Moving files between the VM and the host
 

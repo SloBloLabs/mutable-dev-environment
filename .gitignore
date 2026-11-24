@@ -3,3 +3,4 @@ eurorack-modules/
 parasites/
 .DS_Store
 .vscode
+*.pyc

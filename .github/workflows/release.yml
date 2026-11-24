@@ -1,0 +1,91 @@
+name: Build firmware and publish release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      eurorack_ref:
+        description: Branch, tag or SHA of pichenettes/eurorack to build
+        default: master
+      parasites_ref:
+        description: Branch, tag or SHA of SloBloLabs/parasites to build
+        default: master
+      publish_tag:
+        description: Release tag to create/update (leave empty to only upload a workflow artifact)
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # The pinned GCC 4.8/4.9/5.4 toolchains are 32-bit x86 binaries, and
+    # Python 2.7 is only packaged up to Ubuntu 22.04.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out original Mutable Instruments sources
+        uses: actions/checkout@v4
+        with:
+          repository: pichenettes/eurorack
+          ref: ${{ inputs.eurorack_ref || 'master' }}
+          path: eurorack-modules
+          submodules: recursive
+
+      - name: Check out Parasites sources
+        uses: actions/checkout@v4
+        with:
+          repository: SloBloLabs/parasites
+          ref: ${{ inputs.parasites_ref || 'master' }}
+          path: parasites
+          submodules: recursive
+
+      - name: Cache toolchain downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/toolchain-downloads
+          key: toolchains-${{ hashFiles('ci/install-toolchains.sh') }}
+
+      - name: Install toolchains
+        run: ci/install-toolchains.sh
+
+      - name: Build original firmwares
+        run: ci/build-all.sh eurorack-modules
+
+      - name: Build Parasites firmwares
+        run: ci/build-all.sh parasites
+
+      - name: Package artifacts
+        run: |
+          ci/collect-artifacts.sh eurorack-modules mutable-instruments dist
+          ci/collect-artifacts.sh parasites parasites dist
+          cat > dist/RELEASE_NOTES.md <<EOF
+          Firmware built with the pinned toolchains from this repository's Vagrant environment.
+
+          * \`mutable-instruments.zip\` — original sources, [pichenettes/eurorack@$(git -C eurorack-modules rev-parse --short HEAD)](https://github.com/pichenettes/eurorack/commit/$(git -C eurorack-modules rev-parse HEAD)) (GCC 4.8.3, GCC 4.9 for Beads)
+          * \`parasites.zip\` — [SloBloLabs/parasites@$(git -C parasites rev-parse --short HEAD)](https://github.com/SloBloLabs/parasites/commit/$(git -C parasites rev-parse HEAD)) (GCC 5.4.1)
+
+          Each zip contains \`<module>/\` (application) and \`<module>_bootloader/\` folders with \`.hex\`, \`.elf\`, \`.bin\`, \`.map\` and, where the module supports audio updates, \`.wav\` files.
+          EOF
+          (cd dist && sha256sum *.zip > SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/*.zip
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.publish_tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
+        run: |
+          [ -n "$TAG" ] || { echo "No tag to publish; artifacts are only attached to the workflow run."; exit 0; }
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.zip dist/SHA256SUMS --clobber
+          else
+            gh release create "$TAG" dist/*.zip dist/SHA256SUMS \
+              --title "$TAG" --notes-file dist/RELEASE_NOTES.md --target "$GITHUB_SHA"
+          fi
