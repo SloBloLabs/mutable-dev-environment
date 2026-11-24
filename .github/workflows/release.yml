@@ -60,22 +60,24 @@ jobs:
 
       - name: Package artifacts
         run: |
-          ci/collect-artifacts.sh eurorack-modules mutable-instruments dist
-          ci/collect-artifacts.sh parasites parasites dist
+          ci/collect-artifacts.sh eurorack-modules eurorack-original dist \
+            "Mutable Instruments original firmware" https://github.com/pichenettes/eurorack
+          ci/collect-artifacts.sh parasites parasites dist \
+            "Parasites firmware" https://github.com/SloBloLabs/parasites
           cat > dist/RELEASE_NOTES.md <<EOF
-          Firmware built with the pinned toolchains from this repository's Vagrant environment.
+          **Unofficial community builds** of the Mutable Instruments Eurorack firmware and its Parasites fork. They are not made, endorsed or supported by Mutable Instruments or Emilie Gillet ("Mutable Instruments" is a registered trademark). Provided as is, without warranty; flash at your own risk and verify a build before installing it.
 
-          * \`mutable-instruments.zip\` — original sources, [pichenettes/eurorack@$(git -C eurorack-modules rev-parse --short HEAD)](https://github.com/pichenettes/eurorack/commit/$(git -C eurorack-modules rev-parse HEAD)) (GCC 4.8.3, GCC 4.9 for Beads)
+          * \`eurorack-original.zip\` — original sources, [pichenettes/eurorack@$(git -C eurorack-modules rev-parse --short HEAD)](https://github.com/pichenettes/eurorack/commit/$(git -C eurorack-modules rev-parse HEAD)) (GCC 4.8.3, GCC 4.9 for Beads)
           * \`parasites.zip\` — [SloBloLabs/parasites@$(git -C parasites rev-parse --short HEAD)](https://github.com/SloBloLabs/parasites/commit/$(git -C parasites rev-parse HEAD)) (GCC 5.4.1)
 
-          Each zip contains \`<module>/\` (application) and \`<module>_bootloader/\` folders with \`.hex\`, \`.elf\`, \`.bin\`, \`.map\` and, where the module supports audio updates, \`.wav\` files.
+          Each zip contains \`<module>/\` (application) and \`<module>_bootloader/\` folders with \`.hex\`, \`.elf\`, \`.bin\`, \`.map\` and, where the module supports audio updates, \`.wav\` files. \`NOTICE.txt\` and \`LICENSES/\` in each zip describe the licenses (GPLv3 for the AVR modules Branches, Edges and Grids; MIT for the STM32 modules; third-party notices) and where to get the complete source code.
           EOF
           (cd dist && sha256sum *.zip > SHA256SUMS)
 
       - name: Upload original firmwares
         uses: actions/upload-artifact@v7
         with:
-          path: dist/mutable-instruments.zip
+          path: dist/eurorack-original.zip
           archive: false
 
       - name: Upload Parasites firmwares
