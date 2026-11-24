@@ -25,10 +25,10 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check out original Mutable Instruments sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: pichenettes/eurorack
           ref: ${{ inputs.eurorack_ref || 'master' }}
@@ -36,7 +36,7 @@ jobs:
           submodules: recursive
 
       - name: Check out Parasites sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: SloBloLabs/parasites
           ref: ${{ inputs.parasites_ref || 'master' }}
@@ -44,7 +44,7 @@ jobs:
           submodules: recursive
 
       - name: Cache toolchain downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/toolchain-downloads
           key: toolchains-${{ hashFiles('ci/install-toolchains.sh') }}
@@ -72,10 +72,17 @@ jobs:
           EOF
           (cd dist && sha256sum *.zip > SHA256SUMS)
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload original firmwares
+        uses: actions/upload-artifact@v7
         with:
-          name: firmware
-          path: dist/*.zip
+          path: dist/mutable-instruments.zip
+          archive: false
+
+      - name: Upload Parasites firmwares
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/parasites.zip
+          archive: false
 
       - name: Publish GitHub release
         env:

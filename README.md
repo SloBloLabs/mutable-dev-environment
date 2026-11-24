@@ -127,9 +127,19 @@ holds the `.hex`, `.elf`, `.bin`, `.map` and, for every module whose makefile ha
 `wav` target, the `.wav` audio-update file, for the applications and bootloaders.
 
 * Push a tag to build and publish: `git tag v1.0 && git push origin v1.0`.
-* Or run the workflow manually (Actions tab) and choose the `eurorack`/`parasites`
-  refs to build; give a `publish_tag` to create the release, or leave it empty to
-  get the zips as a workflow artifact only.
+* Or run the workflow manually (Actions tab, or
+  `gh workflow run release.yml --ref master -f publish_tag=v1.0`) and choose the
+  `eurorack`/`parasites` refs to build. Give a `publish_tag` to create the
+  release (the tag is created if it does not exist yet), or leave it empty for a
+  dry run.
+
+Where to find the files:
+
+* **Releases page** (public, permanent): only runs with a tag or `publish_tag`
+  publish here, as `mutable-instruments.zip`, `parasites.zip` and `SHA256SUMS`.
+* **Workflow run page, "Artifacts"** (dry runs): the same two zips, but only for
+  people who are signed in to GitHub with access to the repository, and they are
+  deleted after 90 days.
 
 The same build can be run inside the VM with
 `/vagrant/ci/build-all.sh /vagrant/parasites` (or `/vagrant/eurorack-modules`).
