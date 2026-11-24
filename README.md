@@ -126,9 +126,14 @@ same pinned toolchains as the Vagrant environment (installed by
 holds the `.hex`, `.elf`, `.bin`, `.map` and, for every module whose makefile has a
 `wav` target, the `.wav` audio-update file, for the applications and bootloaders.
 
-* Push a tag to build and publish: `git tag v1.0 && git push origin v1.0`.
+Neither upstream repository has version numbers or tags, so releases are named
+after the build date: `vYYYY-MM-DD` (for example `v2026-11-24`; add a suffix such
+as `v2026-11-24-2` for a second release on the same day). The release notes list
+the exact source commits that were built.
+
+* Push a tag to build and publish: `git tag v2026-11-24 && git push origin v2026-11-24`.
 * Or run the workflow manually (Actions tab, or
-  `gh workflow run release.yml --ref master -f publish_tag=v1.0`) and choose the
+  `gh workflow run release.yml --ref master -f publish_tag=v2026-11-24`) and choose the
   `eurorack`/`parasites` refs to build. Give a `publish_tag` to create the
   release (the tag is created if it does not exist yet), or leave it empty for a
   dry run.
