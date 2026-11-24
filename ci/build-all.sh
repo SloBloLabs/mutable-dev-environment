@@ -39,6 +39,15 @@ make_wav() {
   make -f "$makefile" wav
 }
 
+# The generated resources.cc/.h files are committed. In a fresh clone every
+# file gets an arbitrary timestamp, so make may think resources.cc is older
+# than resources/*.py and try to regenerate it (which can fail, e.g. on
+# case-sensitive file systems because of PPGVOCAL.SYX in plaits). Mark the
+# committed files as up to date.
+for generated in */resources.cc */resources.h; do
+  [ -f "$generated" ] && touch "$generated"
+done
+
 for makefile in */makefile */makefile.mk; do
   [ -f "$makefile" ] || continue
   case "$makefile" in avrlib/*|avrlibx/*) continue ;; esac
